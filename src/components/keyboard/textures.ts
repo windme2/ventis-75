@@ -294,3 +294,59 @@ export function engravingTexture(text: string, spacing = 0) {
   t.anisotropy = 8;
   return t;
 }
+
+/**
+ * Soft shadow under the board, white where it is darkest, for use as an alpha map. Two passes: a wide,
+ * faint falloff and a tighter, darker core where the case meets the surface. Covers the footprint `w` × `d`
+ * plus `pad` on every side.
+ */
+export function shadowTexture(w: number, d: number, pad: number) {
+  const W = 1024;
+  const H = Math.round((W * (d + pad * 2)) / (w + pad * 2));
+  const u = W / (w + pad * 2);
+  const [c, ctx] = canvas2d(W, H);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+  // draw the shape off-canvas and keep only its blurred shadow, which every browser supports
+  const pass = (blur: number, alpha: number, grow: number) => {
+    ctx.save();
+    ctx.shadowColor = `rgba(255,255,255,${alpha})`;
+    ctx.shadowBlur = blur * u;
+    ctx.shadowOffsetX = W * 2;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.roundRect((pad - grow) * u - W * 2, (pad - grow) * u, (w + grow * 2) * u, (d + grow * 2) * u, (0.55 + grow) * u);
+    ctx.fill();
+    ctx.restore();
+  };
+  pass(1.4, 0.55, 0.25);
+  pass(0.35, 0.8, -0.1);
+  return new THREE.CanvasTexture(c);
+}
+
+/** A tight diagonal weave for a braided paracord cable sleeve, as a bump map. */
+export function braidTexture() {
+  const s = 64;
+  const [c, ctx] = canvas2d(s, s);
+  ctx.fillStyle = '#808080';
+  ctx.fillRect(0, 0, s, s);
+  for (let i = -s; i < s * 2; i += 8) {
+    const g = ctx.createLinearGradient(i, 0, i + 8, 0);
+    g.addColorStop(0, '#404040');
+    g.addColorStop(0.5, '#e0e0e0');
+    g.addColorStop(1, '#404040');
+    ctx.strokeStyle = g;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(i, 0);
+    ctx.lineTo(i + s, s);
+    ctx.stroke();
+    ctx.globalAlpha = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(i + s, 0);
+    ctx.lineTo(i, s);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  return repeat(new THREE.CanvasTexture(c));
+}

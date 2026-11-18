@@ -5,6 +5,7 @@ import { Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from '
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Environment, Lightformer, PerformanceMonitor } from '@react-three/drei';
 import Keyboard from './keyboard/Keyboard';
+import Cable from './Cable';
 import { roundedRect } from './keyboard/geometry';
 import { intro, rig, spin, type Colorway } from '@/lib/store';
 import { prefersReducedMotion } from '@/lib/browser';
@@ -51,7 +52,8 @@ function Desk({ colorway }: { colorway: Colorway }) {
     return {
       surface: new THREE.MeshStandardMaterial({ roughness: 0.85, transparent: true, alphaMap, depthWrite: false }),
       mat: new THREE.MeshStandardMaterial({ color: '#1c1d21', roughness: 1, transparent: true }),
-      matGeo: roundedRectGeometry(25, 11.5, 0.9),
+      // deskmat-sized: big enough for the board and the coiled cable behind it
+      matGeo: roundedRectGeometry(40, 18, 1.1),
       plane: new THREE.PlaneGeometry(90, 90),
     };
   }, []);
@@ -75,7 +77,8 @@ function Desk({ colorway }: { colorway: Colorway }) {
       <directionalLight ref={lamp} position={[-12, 8, 6]} color="#ffd8a8" intensity={0} />
       <group ref={group} visible={false}>
         <mesh geometry={parts.plane} material={parts.surface} position-y={-1.12} rotation-x={-Math.PI / 2} receiveShadow />
-        <mesh geometry={parts.matGeo} material={parts.mat} position={[0.6, -1.11, 0.4]} rotation-x={-Math.PI / 2} receiveShadow />
+        <mesh geometry={parts.matGeo} material={parts.mat} position={[-4, -1.11, -1.6]} rotation-x={-Math.PI / 2} receiveShadow />
+        <Cable colorway={colorway} />
       </group>
     </>
   );

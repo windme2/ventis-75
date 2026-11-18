@@ -24,6 +24,7 @@ import {
   grainTexture,
   knurlTexture,
   pcbTextures,
+  shadowTexture,
 } from "./textures";
 import {
   focus,
@@ -238,6 +239,14 @@ function makeMaterials(c: Colorway) {
       clearcoat: 0.6,
       clearcoatRoughness: 0.2,
     }),
+    // soft contact shadow under the case, so the board sits on something instead of floating
+    shadow: new THREE.MeshBasicMaterial({
+      color: "#000000",
+      alphaMap: shadowTexture(17, 7.25, SHADOW_PAD),
+      transparent: true,
+      depthWrite: false,
+      opacity: 0,
+    }),
     rubber: new THREE.MeshStandardMaterial({
       color: "#111214",
       roughness: 0.9,
@@ -285,6 +294,10 @@ interface Props {
 }
 
 const HOMING = new Set(["KeyF", "KeyJ"]);
+
+// How far the soft shadow reaches past the case on each side.
+const SHADOW_PAD = 1.6;
+const boardUp = new THREE.Vector3();
 
 // Ten silicone gaskets around the plate edge, as in the parts list.
 const GASKETS: [number, number][] = [
@@ -372,6 +385,10 @@ export default function Keyboard({
       spaceLegend: dishedPlane(2.6, 0.325, 6.25, 0.12),
       led: new THREE.BoxGeometry(0.22, 0.03, 0.12),
       knob: new THREE.CylinderGeometry(0.6, 0.64, 0.5, 72),
+      shadow: new THREE.PlaneGeometry(
+        17 + SHADOW_PAD * 2,
+        7.25 + SHADOW_PAD * 2,
+      ).rotateX(-Math.PI / 2),
       screw: new THREE.CylinderGeometry(0.13, 0.13, 0.025, 24),
       screwHex: new THREE.CylinderGeometry(0.055, 0.055, 0.03, 6),
     };
@@ -420,6 +437,7 @@ export default function Keyboard({
   const bottom = useRef<THREE.Group>(null!);
   const weight = useRef<THREE.Group>(null!);
   const knobRef = useRef<THREE.Group>(null!);
+  const shadowRef = useRef<THREE.Mesh>(null!);
   const capRefs = useRef<(THREE.Group | null)[]>([]);
   const inst = useRef<(THREE.InstancedMesh | null)[]>([]);
 
@@ -472,6 +490,16 @@ export default function Keyboard({
     u.uTime.value = now();
     u.uBoost.value = glow.boost;
     u.uCover.value = 0.9 - 0.6 * e;
+
+    // The shadow only makes sense while the top faces the camera: fade it as the board flips over,
+    // and let it sit darker on the desk, where there is a real surface under it.
+    boardUp.set(0, 1, 0).transformDirection(bottom.current.matrixWorld);
+    const facing = THREE.MathUtils.smoothstep(boardUp.z, 0.05, 0.35);
+    m.shadow.opacity = facing * THREE.MathUtils.lerp(0.5, 0.8, rig.desk);
+    // floating, the shadow falls on an imagined floor below, wider and softer; on the desk it sits tight
+    const sh = shadowRef.current;
+    sh.position.y = THREE.MathUtils.lerp(-2.6, -1.104, rig.desk);
+    sh.scale.setScalar(THREE.MathUtils.lerp(1.12, 1, rig.desk));
     ripples.forEach((r, i) =>
       (u.uRipples.value as THREE.Vector3[])[i].set(r.x, r.y, r.t),
     );
@@ -698,6 +726,14 @@ export default function Keyboard({
 
       {/* bottom case, feet and weight */}
       <group ref={bottom}>
+        <mesh
+          ref={shadowRef}
+          geometry={geo.shadow}
+          material={m.shadow}
+          position-y={-1.104}
+          renderOrder={-1}
+          raycast={noRaycast}
+        />
         <mesh
           geometry={geo.bottom}
           material={[m.case, m.case, m.chamfer]}
