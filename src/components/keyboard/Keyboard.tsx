@@ -7,15 +7,9 @@ import gsap from "gsap";
 import { BOARD, KEYS, KNOB } from "./layout";
 import {
   CAP,
-  brushedTexture,
-  buildLegendAtlas,
   capDish,
   dishedPlane,
-  engravingTexture,
-  grainTexture,
   keycapGeometry,
-  knurlTexture,
-  pcbTextures,
   plateGeometry,
   plateShape,
   slabGeometry,
@@ -23,6 +17,14 @@ import {
   stabOffset,
   switchGeometries,
 } from "./geometry";
+import {
+  brushedTexture,
+  buildLegendAtlas,
+  engravingTexture,
+  grainTexture,
+  knurlTexture,
+  pcbTextures,
+} from "./textures";
 import {
   focus,
   glow,
