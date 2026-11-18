@@ -7,11 +7,21 @@ import gsap from "gsap";
 import { BOARD, KEYS, KNOB } from "./layout";
 import {
   CAP,
+  brushedTexture,
   buildLegendAtlas,
+  capDish,
+  dishedPlane,
   engravingTexture,
+  grainTexture,
   keycapGeometry,
   knurlTexture,
+  pcbTextures,
+  plateGeometry,
+  plateShape,
   slabGeometry,
+  stabGeometry,
+  stabOffset,
+  switchGeometries,
 } from "./geometry";
 import {
   focus,
@@ -68,6 +78,7 @@ const glowVertex = /* glsl */ `
 const glowFragment = /* glsl */ `
   uniform float uTime;
   uniform float uBoost;
+  uniform float uCover;
   uniform vec3 uA;
   uniform vec3 uB;
   uniform vec3 uRipples[6];
@@ -84,58 +95,136 @@ const glowFragment = /* glsl */ `
         rip += ring * (1.0 - age / 1.4);
       }
     }
-    gl_FragColor = vec4(col * (0.2 + uBoost + rip * 2.0), 1.0);
+    float light = 0.2 + uBoost + rip * 2.0;
+    // closed, the gaps between caps sit in shadow; opened up, the plate shows through
+    gl_FragColor = vec4(col * light, clamp(uCover + light * 0.35, 0.0, 1.0));
     #include <colorspace_fragment>
   }
 `;
 
+// The bright edge where a machined case is cut back to bare aluminium after anodising or coating.
+const chamferColor = (hex: string) =>
+  new THREE.Color(hex).lerp(new THREE.Color("#dfe2e6"), 0.7);
+
 function makeMaterials(c: Colorway) {
+  const grain = grainTexture();
+  grain.repeat.set(3, 3);
+  const brushed = brushedTexture();
+  brushed.repeat.set(0.25, 2);
+  const pcbTex = pcbTextures(KEYS, BOARD.w + 0.1, BOARD.d + 0.1);
+
+  // PBT: matte, with a fine grain that breaks up the highlights and a soft sheen at grazing angles
   const cap = (hex: string) =>
+    new THREE.MeshPhysicalMaterial({
+      color: hex,
+      roughness: 0.72,
+      roughnessMap: grain,
+      bumpMap: grain,
+      bumpScale: 0.25,
+      metalness: 0,
+      sheen: 0.35,
+      sheenRoughness: 0.7,
+      sheenColor: new THREE.Color("#ffffff"),
+      envMapIntensity: 0.75,
+    });
+  // double-shot legends are plastic too, so they take the same light as the cap around them
+  const legend = (hex: string, map: THREE.Texture) =>
     new THREE.MeshStandardMaterial({
       color: hex,
-      roughness: 0.58,
-      metalness: 0,
-      envMapIntensity: 0.7,
-    });
-  const legend = (hex: string, map: THREE.Texture) =>
-    new THREE.MeshBasicMaterial({
-      color: hex,
       map,
+      roughness: 0.6,
       transparent: true,
       depthWrite: false,
-      toneMapped: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      envMapIntensity: 0.75,
     });
   return {
     cap: { alpha: cap(c.alpha), mod: cap(c.mod), accent: cap(c.accent) },
     legend,
+    // bead-blasted aluminium: the grain scatters the highlight into a soft satin sheen
     case: new THREE.MeshPhysicalMaterial({
       color: c.case,
       metalness: 0.7,
-      roughness: 0.46,
+      roughness: 0.55,
+      roughnessMap: grain,
+      bumpMap: grain,
+      bumpScale: 0.15,
       clearcoat: 0.1,
       clearcoatRoughness: 0.6,
     }),
-    plate: new THREE.MeshStandardMaterial({
+    chamfer: new THREE.MeshStandardMaterial({
+      color: chamferColor(c.case),
+      metalness: 1,
+      roughness: 0.14,
+      envMapIntensity: 1.4,
+    }),
+    // brushed metal: streaks in the roughness and a highlight stretched along the grain
+    plate: new THREE.MeshPhysicalMaterial({
       color: c.plate,
       metalness: 0.95,
-      roughness: 0.32,
+      roughness: 0.38,
+      roughnessMap: brushed,
+      anisotropy: 0.6,
+      envMapIntensity: 0.6,
     }),
-    pcb: new THREE.MeshStandardMaterial({
-      color: "#10231b",
-      metalness: 0.2,
-      roughness: 0.6,
+    pcb: new THREE.MeshPhysicalMaterial({
+      map: pcbTex.map,
+      metalnessMap: pcbTex.metal,
+      metalness: 1,
+      roughness: 0.4,
+      clearcoat: 0.6,
+      clearcoatRoughness: 0.35,
     }),
-    housing: new THREE.MeshStandardMaterial({
-      color: "#191a1e",
+    pcbEdge: new THREE.MeshStandardMaterial({
+      color: "#a59a5c",
+      roughness: 0.8,
+    }),
+    pcbBack: new THREE.MeshStandardMaterial({
+      color: "#0c271c",
       roughness: 0.45,
     }),
-    housingTop: new THREE.MeshPhysicalMaterial({
-      color: "#dfe6f2",
-      roughness: 0.12,
-      transparent: true,
-      opacity: 0.45,
+    housing: new THREE.MeshStandardMaterial({
+      color: "#1a1b1f",
+      roughness: 0.5,
     }),
-    stem: new THREE.MeshStandardMaterial({ color: "#e0343c", roughness: 0.4 }),
+    // smoked clear polycarbonate
+    housingTop: new THREE.MeshPhysicalMaterial({
+      color: "#dde4ee",
+      roughness: 0.08,
+      metalness: 0,
+      clearcoat: 1,
+      clearcoatRoughness: 0.05,
+      transparent: true,
+      opacity: 0.4,
+      depthWrite: false,
+    }),
+    pins: new THREE.MeshStandardMaterial({
+      color: "#d9b25f",
+      metalness: 1,
+      roughness: 0.25,
+    }),
+    socket: new THREE.MeshStandardMaterial({
+      color: "#0d0d0f",
+      roughness: 0.6,
+    }),
+    gasket: new THREE.MeshPhysicalMaterial({
+      color: "#e9ece8",
+      roughness: 0.45,
+      transparent: true,
+      opacity: 0.85,
+    }),
+    wire: new THREE.MeshStandardMaterial({
+      color: "#c7cbd0",
+      metalness: 1,
+      roughness: 0.2,
+    }),
+    screw: new THREE.MeshStandardMaterial({
+      color: "#2a2c30",
+      metalness: 0.9,
+      roughness: 0.35,
+    }),
+    stem: new THREE.MeshStandardMaterial({ color: "#e0343c", roughness: 0.35 }),
     led: new THREE.MeshBasicMaterial({ color: c.glowA, toneMapped: false }),
     // Not fully metallic: when the board is flipped the brass faces away from the bright softboxes,
     // and a pure metal would only reflect the dark floor and read as black.
@@ -159,9 +248,12 @@ function makeMaterials(c: Colorway) {
     glow: new THREE.ShaderMaterial({
       vertexShader: glowVertex,
       fragmentShader: glowFragment,
+      transparent: true,
+      depthWrite: false,
       uniforms: {
         uTime: { value: 0 },
         uBoost: { value: 0 },
+        uCover: { value: 0.9 },
         uA: { value: new THREE.Color(c.glowA) },
         uB: { value: new THREE.Color(c.glowB) },
         uRipples: { value: ripples.map(() => new THREE.Vector3(0, 0, -100)) },
@@ -191,6 +283,25 @@ interface Props {
 }
 
 const HOMING = new Set(["KeyF", "KeyJ"]);
+
+// Ten silicone gaskets around the plate edge, as in the parts list.
+const GASKETS: [number, number][] = [
+  ...[-6, -2, 2, 6].flatMap((x): [number, number][] => [
+    [x, -(BOARD.d + 0.15) / 2],
+    [x, (BOARD.d + 0.15) / 2],
+  ]),
+  [-(BOARD.w + 0.15) / 2, 0],
+  [(BOARD.w + 0.15) / 2, 0],
+];
+// Case screws on the underside, clear of the feet and the brass weight.
+const SCREWS: [number, number][] = [
+  [-5.6, -3.0],
+  [0, -3.0],
+  [5.6, -3.0],
+  [-5.6, 3.0],
+  [0, 3.0],
+  [5.6, 3.0],
+];
 
 export default function Keyboard({
   colorway,
@@ -236,18 +347,43 @@ export default function Keyboard({
   });
   const { m, legends, atlas } = assets;
 
-  const geo = useMemo(
-    () => ({
-      frame: slabGeometry(17, 7.25, 0.55, 0.75, { w: 16.3, d: 6.55, r: 0.22 }),
-      bottom: slabGeometry(17, 7.25, 0.55, 0.5),
-      housing: new THREE.BoxGeometry(0.78, 0.3, 0.78),
-      housingTop: new THREE.BoxGeometry(0.68, 0.2, 0.68),
+  const geo = useMemo(() => {
+    const sw = switchGeometries();
+    const pw = BOARD.w + 0.15;
+    const pd = BOARD.d + 0.15;
+    return {
+      frame: slabGeometry(
+        17,
+        7.25,
+        0.55,
+        0.75,
+        { w: 16.3, d: 6.55, r: 0.22 },
+        0.06,
+      ),
+      bottom: slabGeometry(17, 7.25, 0.55, 0.5, undefined, 0.06, -1),
+      ...sw,
+      plate: plateGeometry(KEYS, pw, pd, 0.08),
+      glow: new THREE.ShapeGeometry(plateShape(KEYS, pw - 0.05, pd - 0.05), 3),
+      stab: stabGeometry(),
+      socket: new THREE.BoxGeometry(0.42, 0.07, 0.3),
       homing: new THREE.BoxGeometry(0.24, 0.03, 0.05),
-      spaceLegend: new THREE.PlaneGeometry(2.6, 0.325),
-      stem: new THREE.BoxGeometry(0.2, 0.16, 0.2),
+      spaceLegend: dishedPlane(2.6, 0.325, 6.25, 0.12),
       led: new THREE.BoxGeometry(0.22, 0.03, 0.12),
       knob: new THREE.CylinderGeometry(0.6, 0.64, 0.5, 72),
-    }),
+      screw: new THREE.CylinderGeometry(0.13, 0.13, 0.025, 24),
+      screwHex: new THREE.CylinderGeometry(0.055, 0.055, 0.03, 6),
+    };
+  }, []);
+
+  // long keys get a plate-mount stabiliser at each end, with the wire across the front
+  const stabs = useMemo(
+    () =>
+      KEYS.filter((k) => k.w >= 2).map((k) => ({
+        id: k.id,
+        x: k.x,
+        z: k.z - 0.04,
+        o: stabOffset(k.w),
+      })),
     [],
   );
 
@@ -261,6 +397,7 @@ export default function Keyboard({
     tweenColor(legends.mod.color, c.legendMod);
     tweenColor(legends.accent.color, accents ? c.legendAccent : c.legendMod);
     tweenColor(m.case.color, c.case);
+    tweenColor(m.chamfer.color, `#${chamferColor(c.case).getHexString()}`);
     tweenColor(m.plate.color, c.plate);
     tweenColor(m.led.color, c.glowA);
     tweenColor(m.knobTop.color, c.case);
@@ -332,6 +469,7 @@ export default function Keyboard({
     const u = m.glow.uniforms;
     u.uTime.value = now();
     u.uBoost.value = glow.boost;
+    u.uCover.value = 0.9 - 0.6 * e;
     ripples.forEach((r, i) =>
       (u.uRipples.value as THREE.Vector3[])[i].set(r.x, r.y, r.t),
     );
@@ -403,8 +541,6 @@ export default function Keyboard({
               <mesh
                 geometry={atlas.geos[i]}
                 material={legends[k.kind]}
-                position-y={CAP.h / 2 + 0.004}
-                rotation-x={-Math.PI / 2}
                 raycast={noRaycast}
               />
             )}
@@ -412,8 +548,6 @@ export default function Keyboard({
               <mesh
                 geometry={geo.spaceLegend}
                 material={assets.spaceLegend}
-                position={[0, CAP.h / 2 + 0.004, 0.12]}
-                rotation-x={-Math.PI / 2}
                 raycast={noRaycast}
               />
             )}
@@ -421,7 +555,7 @@ export default function Keyboard({
               <mesh
                 geometry={geo.homing}
                 material={m.cap[k.kind]}
-                position={[0, CAP.h / 2 + 0.01, 0.24]}
+                position={[0, CAP.h / 2 + capDish(0, k.w) + 0.012, 0.24]}
                 raycast={noRaycast}
               />
             )}
@@ -452,40 +586,94 @@ export default function Keyboard({
       </group>
 
       {/* switches */}
+      {/* switches: dark lower housing under the plate, smoked upper housing, cross stem, gold pins */}
       <group ref={switches}>
-        {instanced(0, geo.housing, m.housing, 0.13)}
-        {instanced(1, geo.housingTop, m.housingTop, 0.33)}
-        {instanced(2, geo.stem, m.stem, 0.5)}
+        {instanced(0, geo.lower, m.housing, 0)}
+        {instanced(1, geo.upper, m.housingTop, 0)}
+        {instanced(2, geo.stem, m.stem, 0)}
+        {instanced(3, geo.pins, m.pins, 0)}
       </group>
 
-      {/* plate, with the light that leaks between the caps */}
+      {/* plate with its switch cutouts, gaskets and stabilisers, plus the light that leaks between the caps */}
       <group ref={plate}>
-        <mesh position-y={-0.04} material={m.plate} receiveShadow castShadow>
-          <boxGeometry args={[BOARD.w + 0.15, 0.08, BOARD.d + 0.15]} />
-        </mesh>
         <mesh
+          geometry={geo.plate}
+          position-y={-0.08}
+          material={m.plate}
+          receiveShadow
+          castShadow
+        />
+        <mesh
+          geometry={geo.glow}
           position-y={0.004}
           rotation-x={-Math.PI / 2}
           material={m.glow}
           raycast={noRaycast}
-        >
-          <planeGeometry args={[BOARD.w + 0.1, BOARD.d + 0.1]} />
-        </mesh>
+        />
+        {GASKETS.map(([x, z]) => (
+          <mesh
+            key={`${x}${z}`}
+            position={[x, -0.04, z]}
+            material={m.gasket}
+            raycast={noRaycast}
+          >
+            <boxGeometry args={[0.7, 0.16, 0.14]} />
+          </mesh>
+        ))}
+        {stabs.map((s) => (
+          <group key={s.id} position={[s.x, 0, s.z]}>
+            <mesh
+              geometry={geo.stab}
+              position-x={-s.o}
+              material={m.housing}
+              raycast={noRaycast}
+            />
+            <mesh
+              geometry={geo.stab}
+              position-x={s.o}
+              material={m.housing}
+              raycast={noRaycast}
+            />
+            <mesh
+              position={[0, -0.13, 0.3]}
+              rotation-z={Math.PI / 2}
+              material={m.wire}
+              raycast={noRaycast}
+            >
+              <cylinderGeometry args={[0.018, 0.018, s.o * 2, 6]} />
+            </mesh>
+          </group>
+        ))}
       </group>
 
-      {/* PCB */}
+      {/* PCB: traces and pads on top, hot-swap sockets underneath, LEDs facing up */}
       <group ref={pcb}>
-        <mesh position-y={-0.3} material={m.pcb} castShadow>
+        <mesh
+          position-y={-0.3}
+          material={[
+            m.pcbEdge,
+            m.pcbEdge,
+            m.pcb,
+            m.pcbBack,
+            m.pcbEdge,
+            m.pcbEdge,
+          ]}
+          castShadow
+          receiveShadow
+        >
           <boxGeometry args={[BOARD.w + 0.1, 0.07, BOARD.d + 0.1]} />
         </mesh>
-        <group position-z={0.3}>{instanced(3, geo.led, m.led, -0.255)}</group>
+        <group position-z={0.3}>{instanced(4, geo.led, m.led, -0.255)}</group>
+        <group position={[0.02, 0, -0.2]}>
+          {instanced(5, geo.socket, m.socket, -0.37)}
+        </group>
       </group>
 
       {/* top case, with the USB-C port on its back edge */}
       <group ref={top}>
         <mesh
           geometry={geo.frame}
-          material={m.case}
+          material={[m.case, m.case, m.chamfer]}
           position-y={-0.4}
           castShadow
           receiveShadow
@@ -510,11 +698,22 @@ export default function Keyboard({
       <group ref={bottom}>
         <mesh
           geometry={geo.bottom}
-          material={m.case}
+          material={[m.case, m.case, m.chamfer]}
           position-y={-1.0}
           castShadow
           receiveShadow
         />
+        {SCREWS.map(([x, z]) => (
+          <group key={`${x}${z}`} position={[x, -1.068, z]}>
+            <mesh geometry={geo.screw} material={m.screw} raycast={noRaycast} />
+            <mesh
+              geometry={geo.screwHex}
+              position-y={-0.004}
+              material={m.rubber}
+              raycast={noRaycast}
+            />
+          </group>
+        ))}
         {[
           [-7.4, 2.8],
           [7.4, 2.8],
