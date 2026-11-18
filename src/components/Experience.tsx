@@ -219,8 +219,8 @@ export default function Experience() {
       .to(glow, { boost: 1.6, duration: 0.3, ease: "power2.out" })
       .to(glow, { boost: 0, duration: 1.8, ease: "power2.inOut" });
     if (!prefersReducedMotion()) {
-      wave(0, (t, fn) => gsap.delayedCall(t, fn));
-      wave(0.5, (t, fn) => gsap.delayedCall(t, fn));
+      wave(0);
+      wave(0.5);
     }
   }, [result]);
 
@@ -292,7 +292,7 @@ export default function Experience() {
       return;
     }
     if (prefersReducedMotion()) return;
-    wave(0.1, (t, fn) => gsap.delayedCall(t, fn));
+    wave(0.1);
   }, [cw]);
 
   // The visitor's own keyboard drives the 3D one.
@@ -559,7 +559,7 @@ export default function Experience() {
           },
           1.1,
         )
-        .add(() => wave(0, (t, fn) => gsap.delayedCall(t, fn)), 1.7);
+        .add(() => wave(0), 1.7);
     },
     { scope: root },
   );

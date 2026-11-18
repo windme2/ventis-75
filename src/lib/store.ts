@@ -1,3 +1,4 @@
+import gsap from 'gsap';
 import { KEYS } from '@/components/keyboard/layout';
 import { release, thock, type SwitchSound } from './sound';
 
@@ -45,9 +46,12 @@ export const glow = { boost: 0 };
 /** Drag-to-turn in the Finishes section. `target` follows the pointer, the rig eases towards it. */
 export const spin = { enabled: false, target: 0, value: 0 };
 
-/** Presses every key in a sweep from left to right, silently. Used on load and on finish change. */
-export function wave(delay = 0, schedule: (t: number, fn: () => void) => void = (t, fn) => setTimeout(fn, t * 1000)) {
-  KEYS.forEach((k) => schedule(delay + (k.x + 8) * 0.04 + k.row * 0.025, () => pressKey(k.id, { sound: false })));
+/**
+ * Presses every key in a sweep from left to right, silently. Used on load, on finish change and after a
+ * speed test. Timed on GSAP's clock, so it pauses with the tab like the rest of the motion.
+ */
+export function wave(delay = 0) {
+  KEYS.forEach((k) => gsap.delayedCall(delay + (k.x + 8) * 0.04 + k.row * 0.025, () => pressKey(k.id, { sound: false })));
 }
 
 export const ripples = Array.from({ length: 6 }, () => ({ x: 0, y: 0, t: -100 }));
