@@ -995,6 +995,19 @@ kbd {
   min-height: 100svh;
 }
 
+/* fades the page out and back in when a nav link jumps to a section */
+.veil {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  visibility: hidden;
+  opacity: 0;
+  background:
+    radial-gradient(70% 60% at 50% 48%, rgb(255 255 255 / 0.16), transparent 70%),
+    radial-gradient(120% 90% at 50% 120%, rgb(0 0 0 / 0.35), transparent 60%), var(--backdrop);
+}
+
 /* footer */
 .foot {
   position: relative;

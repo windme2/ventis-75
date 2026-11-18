@@ -107,6 +107,7 @@ export default function Experience() {
   const [ready, setReady] = useState(false);
   const [revealed, setRevealed] = useState(false);
   const bar = useRef<HTMLElement>(null);
+  const veil = useRef<HTMLDivElement>(null);
   const introTl = useRef<gsap.core.Timeline | null>(null);
   const onReady = useCallback(() => setReady(true), []);
   const onReveal = useCallback(() => setRevealed(true), []);
@@ -346,6 +347,59 @@ export default function Experience() {
       window.removeEventListener("blur", blur);
     };
   }, [countKey, feed]);
+
+  // In-page links (the header nav, the wordmark, Back to the top) fade through the backdrop instead of
+  // scrolling there. A scroll would race the board through every pose on the way, which looks frantic.
+  useEffect(() => {
+    const veilEl = veil.current;
+    if (!veilEl) return;
+    let busy = false;
+
+    // Finish the scroll-scrubbed tweens at once, so the board is already in the new pose. Every section's
+    // tween writes the same pose object, so the one nearest the destination has to run last: in page order
+    // when going down, reversed when going up.
+    const settle = (up: boolean) => {
+      ScrollTrigger.update();
+      const triggers = ScrollTrigger.getAll();
+      (up ? triggers.reverse() : triggers).forEach((st) => {
+        // only scrubbed triggers have a catch-up tween; the others return false
+        const tween = st.getTween();
+        if (tween) tween.progress(1);
+      });
+    };
+
+    const onClick = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const link = (e.target as Element | null)?.closest<HTMLAnchorElement>('a[href^="#"]');
+      const id = link?.getAttribute("href")?.slice(1);
+      const target = id ? document.getElementById(id) : null;
+      if (!target) return;
+      e.preventDefault();
+      link?.blur();
+      const top = id === "top" ? 0 : target.getBoundingClientRect().top + window.scrollY;
+
+      const up = top < window.scrollY;
+      if (prefersReducedMotion()) {
+        window.scrollTo({ top, behavior: "instant" });
+        settle(up);
+        return;
+      }
+      if (busy) return;
+      busy = true;
+      gsap
+        .timeline({ onComplete: () => void (busy = false) })
+        .to(veilEl, { autoAlpha: 1, duration: 0.28, ease: "power2.in" })
+        .add(() => {
+          window.scrollTo({ top, behavior: "instant" });
+          settle(up);
+        })
+        // give the canvas a moment to draw the new pose before the page comes back
+        .to(veilEl, { autoAlpha: 0, duration: 0.5, ease: "power2.out", delay: 0.12 });
+    };
+
+    document.addEventListener("click", onClick);
+    return () => document.removeEventListener("click", onClick);
+  }, []);
 
   // Drag sideways on the board to turn it, while the Finishes section is on screen.
   useEffect(() => {
@@ -947,6 +1001,9 @@ export default function Experience() {
             </a>
           ))}
       </footer>
+
+      {/* covers the page while an in-page link jumps to its section; the header stays above it */}
+      <div className="veil" ref={veil} aria-hidden />
     </div>
   );
 }
