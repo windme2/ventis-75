@@ -928,8 +928,8 @@ export default function Experience() {
               </a>
             </div>
             <p className="fine rv">
-              Ventis-75 is a design study. Everything above is drawn live in
-              your browser: no 3D model files, no images.
+              Ventis-75 is a concept. Everything above is drawn live in your
+              browser: no 3D model files, no images.
             </p>
           </div>
         </section>
