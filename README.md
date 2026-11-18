@@ -83,7 +83,7 @@ Motion respects `prefers-reduced-motion`: the load sequence, idle float, scroll 
 | `src/app/globals.css` | All styles, including the CSS animations and the responsive layout |
 | `src/app/not-found.tsx` | The 404 page, three keycaps on the studio backdrop |
 | `src/app/opengraph-image.tsx` | The 1200 × 630 share image, generated at build time |
-| `src/app/icon.svg` | The favicon |
+| `src/app/icon.svg`, `favicon.ico`, `apple-icon.png` | The tab icon (a sea-green keycap with a V), its 16/32/48 px fallback for older browsers, and the 180 px home-screen icon |
 | **Components** | |
 | `src/components/Experience.tsx` | Page sections, the GSAP load timeline, scroll reveals, scroll-scrubbed poses, physical keyboard input and typing stats |
 | `src/components/Scene.tsx` | Canvas, lights, the studio reflection map, adaptive resolution, the desk for the lifestyle shot and the pose rig (idle float, pointer parallax, drag-to-turn, responsive fit) |
