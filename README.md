@@ -68,6 +68,7 @@ Motion respects `prefers-reduced-motion`: the load sequence, idle float, scroll 
 ## Behind the build
 
 - **No model files.** The board is built from code: 82 keycaps from one shared geometry, the case from rounded extrusions, the legends from a single canvas texture atlas. That keeps the download small and lets a finish change retint every material at once, with no second model to load.
+- **Real parts, drawn in code.** Keycaps have the cylindrical Cherry scoop and a grainy PBT finish, with legends that follow the scoop. Each switch has a dark lower housing, a smoked clear top, a cross stem and gold pins. The plate is cut with 82 switch holes and stabiliser slots and sits on ten gaskets. The circuit board texture is drawn to scale (traces, gold pads, a diode and silkscreen label per switch), and the case has a bead-blasted finish with a bright diamond-cut chamfer.
 - **One pose per section.** Each section names a camera pose (position, rotation, scale, explode amount). GSAP ScrollTrigger scrubs between them, and the render loop reads plain mutable objects instead of React state, so scrolling never re-renders the component tree.
 - **Real key sounds.** The first version synthesised every click and sounded fake. Each switch now plays one of eight real presses cut from CC0 recordings, never the same one twice in a row, with a small pitch and level jitter and an EQ that tames the close-miked highs. Safari keeps the MP3 encoder's leading silence, which put presses late, so the start of each file is measured on load and the slots are offset by it.
 - **Always something to see.** If WebGL is missing or the scene crashes, an SVG drawing of the same layout takes over and still follows the scroll and your typing.
@@ -78,17 +79,22 @@ Motion respects `prefers-reduced-motion`: the load sequence, idle float, scroll 
 | --- | --- |
 | `src/app/layout.tsx` | Root layout, metadata, font import |
 | `src/app/globals.css` | All styles, including the CSS animations and the responsive layout |
-| `src/components/Experience.tsx` | Page sections and copy, the GSAP load timeline, scroll reveals, scroll-scrubbed poses, physical keyboard input and typing stats |
+| `src/components/Experience.tsx` | Page sections, the GSAP load timeline, scroll reveals, scroll-scrubbed poses, physical keyboard input and typing stats |
 | `src/components/Scene.tsx` | Canvas, lights, the studio reflection map, adaptive resolution, the desk for the lifestyle shot and the pose rig (idle float, pointer parallax, drag-to-turn, responsive fit) |
 | `src/components/Loader.tsx` | The 000–100 loading screen and its curtain exit |
 | `src/components/Switches.tsx` | The force-curve chart and the switch picker |
 | `src/components/Fallback.tsx` | The flat SVG board shown when WebGL is unavailable |
+| `src/components/GLBoundary.tsx` | Catches a failing 3D scene so the page can switch to the fallback |
 | `src/app/not-found.tsx` | The 404 page, three keycaps on the studio backdrop |
 | `src/lib/site.ts` | Author name and the footer links (GitHub, portfolio); an empty link is hidden |
+| `src/lib/content.ts` | Page copy: parts list, specs, highlights, underside facts, speed-test sentences |
+| `src/lib/speedTest.ts` | Speed test scoring: new sentence, keystroke, words per minute and accuracy |
+| `src/lib/browser.ts` | Reduced-motion, touch and WebGL checks, and safe localStorage |
 | `src/app/opengraph-image.tsx` | The 1200 × 630 share image, generated at build time |
 | `src/components/keyboard/Keyboard.tsx` | The model: caps (with homing bars and the spacebar wordmark), switches, plate, PCB, case, USB-C port, weight, knob, the glow shader, the staggered explode and the layer lift |
 | `src/components/keyboard/layout.ts` | The 75% layout (82 keys) mapped to `KeyboardEvent.code`, colour groups and shifted sub-legends |
-| `src/components/keyboard/geometry.ts` | Keycap and case geometry, the legend texture atlas, knurl and engraving textures |
+| `src/components/keyboard/geometry.ts` | Scooped keycaps, chamfered case slabs, the plate with its cutouts, and the switch and stabiliser parts |
+| `src/components/keyboard/textures.ts` | Canvas textures: the legend atlas, PBT and bead-blast grain, brushed metal, the PCB artwork, knurl and engraving |
 | `src/lib/store.ts` | Section poses (`POSES`), colourways (`COLORWAYS`), switch types (`SWITCHES`), key press state, layer focus and the key `wave` helper |
 | `src/lib/sound.ts` | Key sounds: loads the recorded samples, plays a random press (and a lighter release) per key, falls back to a synthesised sound |
 | `public/sounds/*.mp3` | One sprite per switch: eight single presses, one every 250 ms |
@@ -101,10 +107,10 @@ Motion respects `prefers-reduced-motion`: the load sequence, idle float, scroll 
 - **Your own key sounds:** replace a file in `public/sounds/` with a mono MP3 of the same layout: single presses, each starting at the top of its own 250 ms slot (eight is a good number). `LEVEL` in `sound.ts` balances the volume between switches.
 - **Explode distances and timing:** `EXPLODE` and `STAGGER` in `Keyboard.tsx`. `FOCUS_LIFT` sets how far a hovered layer rises.
 - **Footer links:** fill in the `href` values in `src/lib/site.ts`.
-- **Speed test sentences:** `SENTENCES` in `Experience.tsx`.
+- **Speed test sentences:** `SENTENCES` in `src/lib/content.ts`.
 - **Share image URL:** set `NEXT_PUBLIC_SITE_URL` to the deployed address so link previews use absolute URLs (on Vercel the production URL is picked up automatically).
 - **Idle float:** the `float` and `sway` amplitudes in `Scene.tsx`.
-- **Parts list:** `LAYERS` in `Experience.tsx`. Keep its order in step with `FOCUS_LIFT`.
+- **Parts list:** `LAYERS` in `src/lib/content.ts`. Keep its order in step with `FOCUS_LIFT` in `Keyboard.tsx`.
 
 ## Sound credits
 
