@@ -125,7 +125,8 @@ export function dishedPlane(width: number, depth: number, w: number, offsetZ = 0
   return g;
 }
 
-function roundedRect(path: THREE.Path, w: number, h: number, r: number, cx = 0, cy = 0) {
+/** Traces a rounded rectangle centred on (cx, cy) into a shape or hole path. */
+export function roundedRect(path: THREE.Path, w: number, h: number, r: number, cx = 0, cy = 0) {
   const x = cx - w / 2;
   const y = cy - h / 2;
   path.moveTo(x + r, y);
@@ -219,7 +220,7 @@ export function slabGeometry(
 }
 
 /** Switch cutouts (14 mm square) and stabiliser slots, as seen from above. Shape y is world -z. */
-export const SWITCH_HOLE = 0.74;
+const SWITCH_HOLE = 0.74;
 export const stabOffset = (w: number) => (w >= 6 ? 2.625 : 0.625);
 
 export function plateShape(keys: KeyDef[], w: number, d: number) {

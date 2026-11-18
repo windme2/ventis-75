@@ -5,6 +5,7 @@ import { Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from '
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Environment, Lightformer, PerformanceMonitor } from '@react-three/drei';
 import Keyboard from './keyboard/Keyboard';
+import { roundedRect } from './keyboard/geometry';
 import { intro, rig, spin, type Colorway } from '@/lib/store';
 import { prefersReducedMotion } from '@/lib/browser';
 
@@ -32,19 +33,9 @@ function fadeTexture() {
   return new THREE.CanvasTexture(c);
 }
 
-function roundedRect(w: number, h: number, r: number) {
+function roundedRectGeometry(w: number, h: number, r: number) {
   const s = new THREE.Shape();
-  const x = -w / 2;
-  const y = -h / 2;
-  s.moveTo(x + r, y);
-  s.lineTo(x + w - r, y);
-  s.quadraticCurveTo(x + w, y, x + w, y + r);
-  s.lineTo(x + w, y + h - r);
-  s.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  s.lineTo(x + r, y + h);
-  s.quadraticCurveTo(x, y + h, x, y + h - r);
-  s.lineTo(x, y + r);
-  s.quadraticCurveTo(x, y, x + r, y);
+  roundedRect(s, w, h, r);
   return new THREE.ShapeGeometry(s, 8);
 }
 
@@ -60,7 +51,7 @@ function Desk({ colorway }: { colorway: Colorway }) {
     return {
       surface: new THREE.MeshStandardMaterial({ roughness: 0.85, transparent: true, alphaMap, depthWrite: false }),
       mat: new THREE.MeshStandardMaterial({ color: '#1c1d21', roughness: 1, transparent: true }),
-      matGeo: roundedRect(25, 11.5, 0.9),
+      matGeo: roundedRectGeometry(25, 11.5, 0.9),
       plane: new THREE.PlaneGeometry(90, 90),
     };
   }, []);
