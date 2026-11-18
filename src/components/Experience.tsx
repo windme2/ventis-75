@@ -42,10 +42,16 @@ import {
 import { preloadSounds, setSoundEnabled } from "@/lib/sound";
 import { SITE } from "@/lib/site";
 import {
+  BACKSPACE,
+  charState,
+  newTest,
+  typeInto,
+  type SpeedTest,
+} from "@/lib/speedTest";
+import {
   HIGHLIGHTS,
   LAYERS,
   SECTIONS,
-  SENTENCES,
   SPECS,
   TITLE,
   UNDERSIDE,
@@ -56,7 +62,6 @@ gsap.registerPlugin(ScrollTrigger, useGSAP);
 const Scene = dynamic(() => import("./Scene"), { ssr: false });
 
 const pad = (n: number) => String(n).padStart(2, "0");
-const BACKSPACE = "\b";
 
 /** The character a tapped 3D key stands for in the readout, if any. */
 const charFor = (i: number) => {
@@ -82,14 +87,6 @@ interface Glyph {
   ch: string;
 }
 
-interface SpeedTest {
-  text: string;
-  typed: string;
-  start: number;
-  keys: number;
-  errors: number;
-  result: null | { wpm: number; acc: number; secs: number };
-}
 
 export default function Experience() {
   const root = useRef<HTMLDivElement>(null);
@@ -174,45 +171,13 @@ export default function Experience() {
     if (ch === BACKSPACE) setTyped((s) => s.slice(0, -1));
     else setTyped((s) => [...s, { id: glyphId.current++, ch }].slice(-22));
 
-    setTest((t) => {
-      if (!t || t.result) return t;
-      if (ch === BACKSPACE) return { ...t, typed: t.typed.slice(0, -1) };
-      if (t.typed.length >= t.text.length) return t;
-      const start = t.keys === 0 ? performance.now() : t.start;
-      const typed = t.typed + ch;
-      const keys = t.keys + 1;
-      const errors = t.errors + (ch === t.text[t.typed.length] ? 0 : 1);
-      if (typed.length < t.text.length)
-        return { ...t, typed, start, keys, errors };
-      const ms = Math.max(performance.now() - start, 500);
-      const correct = [...typed].filter((c, i) => c === t.text[i]).length;
-      return {
-        ...t,
-        typed,
-        start,
-        keys,
-        errors,
-        result: {
-          wpm: Math.round(correct / 5 / (ms / 60000)),
-          acc: Math.round(((keys - errors) / keys) * 100),
-          secs: Math.round(ms / 100) / 10,
-        },
-      };
-    });
+    setTest((t) => (t ? typeInto(t, ch) : t));
   }, []);
 
   const startTest = () => {
-    let n = Math.floor(Math.random() * SENTENCES.length);
-    if (n === lastSentence.current) n = (n + 1) % SENTENCES.length;
+    const [next, n] = newTest(lastSentence.current);
     lastSentence.current = n;
-    setTest({
-      text: SENTENCES[n],
-      typed: "",
-      start: 0,
-      keys: 0,
-      errors: 0,
-      result: null,
-    });
+    setTest(next);
     // otherwise the first Space would press the focused button again
     if (document.activeElement instanceof HTMLElement)
       document.activeElement.blur();
@@ -714,21 +679,11 @@ export default function Experience() {
             {test ? (
               <div className="test">
                 <p className="target" aria-label={`Type: ${test.text}`}>
-                  {[...test.text].map((ch, i) => {
-                    const state =
-                      i < test.typed.length
-                        ? test.typed[i] === ch
-                          ? "ok"
-                          : "bad"
-                        : i === test.typed.length && !test.result
-                          ? "cur"
-                          : "";
-                    return (
-                      <span key={i} className={state} aria-hidden>
-                        {ch}
-                      </span>
-                    );
-                  })}
+                  {[...test.text].map((ch, i) => (
+                    <span key={i} className={charState(test, i)} aria-hidden>
+                      {ch}
+                    </span>
+                  ))}
                 </p>
                 {touch && !test.result && (
                   <input
