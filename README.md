@@ -10,7 +10,7 @@ An interactive 3D product page for **Ventis-75**, a concept 75% aluminium mechan
 | --- | --- | --- |
 | ![Switch picker with the force curve](docs/switches.jpg) | ![The board pulled apart into its layers](docs/layers.jpg) | ![The board in the Persimmon finish](docs/finishes.jpg) |
 
-Everything is procedural. There are no 3D model files, HDR maps or images: the keycaps, case, legends, knurling and studio lighting are all generated at runtime. Even the share image is drawn from the same key layout. The only media files are four small key-sound recordings (about 100 KB in total).
+Everything is procedural. The site ships no 3D model files, HDR maps or images: the keycaps, switches, plate, circuit board, case, legends and studio lighting are all generated at runtime. Even the share image is drawn from the same key layout. The only media files are four small key-sound recordings (about 100 KB in total).
 
 ## Stack
 
@@ -47,7 +47,7 @@ Before the page, a full-screen loader counts from 000 to 100. It is tied to real
 | **Switches** | Pick Red (linear), Brown (tactile), Blue (clicky) or Black (heavy linear, with a deeper thock). The board half-opens so the stems show, and the stem colour, key sound and force curve all change with your pick. The spacebar presses once so you hear the new switch. |
 | **Anatomy** | The board explodes into seven layers, each one starting a beat after the layer above it. Point at a row in the parts list (or tab to it) to lift that layer out of the stack. |
 | **Finishes** | Four colourways: Basalt (the default), Signal, Persimmon and Sakura. The page backdrop, materials and glow all cross-fade, and a sweep runs across the keys. Clicking the knob on the 3D board cycles the finish too. A switch turns the accent Esc and Enter on or off, and you can drag the board sideways to turn it. |
-| **Underside** | The board flips to show the numbered brass weight, the feet and the USB-C port. |
+| **Underside** | The board flips to show the numbered brass weight, the feet, the case screws and the polished bottom edge. |
 | **At the desk** | A lifestyle shot: the board sits low on a felt mat on a desk, under a warm side lamp. |
 | **Specifications** | The full spec sheet. |
 
@@ -77,27 +77,35 @@ Motion respects `prefers-reduced-motion`: the load sequence, idle float, scroll 
 
 | File | What it does |
 | --- | --- |
+| **App** | |
 | `src/app/layout.tsx` | Root layout, metadata, font import |
+| `src/app/page.tsx` | The page, which renders `Experience` |
 | `src/app/globals.css` | All styles, including the CSS animations and the responsive layout |
+| `src/app/not-found.tsx` | The 404 page, three keycaps on the studio backdrop |
+| `src/app/opengraph-image.tsx` | The 1200 × 630 share image, generated at build time |
+| `src/app/icon.svg` | The favicon |
+| **Components** | |
 | `src/components/Experience.tsx` | Page sections, the GSAP load timeline, scroll reveals, scroll-scrubbed poses, physical keyboard input and typing stats |
 | `src/components/Scene.tsx` | Canvas, lights, the studio reflection map, adaptive resolution, the desk for the lifestyle shot and the pose rig (idle float, pointer parallax, drag-to-turn, responsive fit) |
 | `src/components/Loader.tsx` | The 000–100 loading screen and its curtain exit |
 | `src/components/Switches.tsx` | The force-curve chart and the switch picker |
 | `src/components/Fallback.tsx` | The flat SVG board shown when WebGL is unavailable |
 | `src/components/GLBoundary.tsx` | Catches a failing 3D scene so the page can switch to the fallback |
-| `src/app/not-found.tsx` | The 404 page, three keycaps on the studio backdrop |
-| `src/lib/site.ts` | Author name and the footer links (GitHub, portfolio); an empty link is hidden |
-| `src/lib/content.ts` | Page copy: parts list, specs, highlights, underside facts, speed-test sentences |
-| `src/lib/speedTest.ts` | Speed test scoring: new sentence, keystroke, words per minute and accuracy |
-| `src/lib/browser.ts` | Reduced-motion, touch and WebGL checks, and safe localStorage |
-| `src/app/opengraph-image.tsx` | The 1200 × 630 share image, generated at build time |
-| `src/components/keyboard/Keyboard.tsx` | The model: caps (with homing bars and the spacebar wordmark), switches, plate, PCB, case, USB-C port, weight, knob, the glow shader, the staggered explode and the layer lift |
+| **Keyboard model** | |
+| `src/components/keyboard/Keyboard.tsx` | The model and its materials: caps (with homing bars and the spacebar wordmark), switches, plate with gaskets and stabilisers, PCB with hot-swap sockets, case, USB-C port, screws, weight, knob, the glow shader, the staggered explode and the layer lift |
 | `src/components/keyboard/layout.ts` | The 75% layout (82 keys) mapped to `KeyboardEvent.code`, colour groups and shifted sub-legends |
 | `src/components/keyboard/geometry.ts` | Scooped keycaps, chamfered case slabs, the plate with its cutouts, and the switch and stabiliser parts |
 | `src/components/keyboard/textures.ts` | Canvas textures: the legend atlas, PBT and bead-blast grain, brushed metal, the PCB artwork, knurl and engraving |
+| **Logic and data** | |
 | `src/lib/store.ts` | Section poses (`POSES`), colourways (`COLORWAYS`), switch types (`SWITCHES`), key press state, layer focus and the key `wave` helper |
+| `src/lib/content.ts` | Page copy: parts list, specs, highlights, underside facts, speed-test sentences |
+| `src/lib/speedTest.ts` | Speed test scoring: new sentence, keystroke, words per minute and accuracy |
 | `src/lib/sound.ts` | Key sounds: loads the recorded samples, plays a random press (and a lighter release) per key, falls back to a synthesised sound |
+| `src/lib/browser.ts` | Reduced-motion, touch and WebGL checks, and safe localStorage |
+| `src/lib/site.ts` | Author name and the footer links (GitHub, portfolio); an empty link is hidden |
+| **Assets** | |
 | `public/sounds/*.mp3` | One sprite per switch: eight single presses, one every 250 ms |
+| `docs/*.jpg` | Screenshots for this README (not used by the site) |
 
 ## Tuning
 
