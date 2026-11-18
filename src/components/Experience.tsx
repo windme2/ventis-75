@@ -939,8 +939,6 @@ export default function Experience() {
         <span>
           © {SITE.year} {SITE.author}
         </span>
-        <span aria-hidden>|</span>
-        <span>All rights reserved</span>
         {SITE.links
           .filter((l) => l.href)
           .map((l) => (
