@@ -6,6 +6,7 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { Environment, Lightformer, PerformanceMonitor } from '@react-three/drei';
 import Keyboard from './keyboard/Keyboard';
 import { intro, rig, spin, type Colorway } from '@/lib/store';
+import { prefersReducedMotion } from '@/lib/browser';
 
 interface SceneProps {
   colorway: Colorway;
@@ -94,7 +95,7 @@ function Rig({ children, onReady }: { children: ReactNode; onReady: () => void }
   const frames = useRef(0);
   const look = useRef({ x: 0, y: 0 });
   const [still] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    () => prefersReducedMotion(),
   );
 
   useFrame((state, rawDt) => {

@@ -2,14 +2,12 @@
 
 import dynamic from "next/dynamic";
 import {
-  Component,
   useCallback,
   useEffect,
   useRef,
   useState,
   type CSSProperties,
   type ChangeEvent,
-  type ReactNode,
 } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -34,6 +32,13 @@ import {
 import { ForceCurve, SwitchPicker } from "./Switches";
 import Loader from "./Loader";
 import Fallback from "./Fallback";
+import GLBoundary from "./GLBoundary";
+import {
+  hasWebGL,
+  isTouchScreen,
+  prefersReducedMotion,
+  storage,
+} from "@/lib/browser";
 import { preloadSounds, setSoundEnabled } from "@/lib/sound";
 import { SITE } from "@/lib/site";
 import {
@@ -52,50 +57,6 @@ const Scene = dynamic(() => import("./Scene"), { ssr: false });
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const BACKSPACE = "\b";
-
-const store = {
-  get: (k: string) => {
-    try {
-      return window.localStorage.getItem(k);
-    } catch {
-      return null;
-    }
-  },
-  set: (k: string, v: string) => {
-    try {
-      window.localStorage.setItem(k, v);
-    } catch {
-      /* private mode: fine */
-    }
-  },
-};
-
-function hasWebGL() {
-  if (new URLSearchParams(window.location.search).has("nogl")) return false; // for testing the fallback
-  try {
-    const c = document.createElement("canvas");
-    return !!(c.getContext("webgl2") || c.getContext("webgl"));
-  } catch {
-    return false;
-  }
-}
-
-/** If the 3D scene throws (for example, the GPU refuses a context), swap to the flat drawing. */
-class GLBoundary extends Component<
-  { onError: () => void; children: ReactNode },
-  { failed: boolean }
-> {
-  state = { failed: false };
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-  componentDidCatch() {
-    this.props.onError();
-  }
-  render() {
-    return this.state.failed ? null : this.props.children;
-  }
-}
 
 /** The character a tapped 3D key stands for in the readout, if any. */
 const charFor = (i: number) => {
@@ -292,7 +253,7 @@ export default function Experience() {
       .timeline()
       .to(glow, { boost: 1.6, duration: 0.3, ease: "power2.out" })
       .to(glow, { boost: 0, duration: 1.8, ease: "power2.inOut" });
-    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (!prefersReducedMotion()) {
       wave(0, (t, fn) => gsap.delayedCall(t, fn));
       wave(0.5, (t, fn) => gsap.delayedCall(t, fn));
     }
@@ -302,14 +263,14 @@ export default function Experience() {
   useEffect(() => {
     setGl(hasWebGL());
     preloadSounds();
-    setTouch(window.matchMedia("(hover: none) and (pointer: coarse)").matches);
-    const saved = store.get("ventis:sound");
+    setTouch(isTouchScreen());
+    const saved = storage.get("ventis:sound");
     if (saved) setSound(saved === "on");
   }, []);
 
   useEffect(() => {
     setSoundEnabled(sound);
-    store.set("ventis:sound", sound ? "on" : "off");
+    storage.set("ventis:sound", sound ? "on" : "off");
   }, [sound]);
 
   // Without WebGL there is nothing to wait for.
@@ -346,8 +307,8 @@ export default function Experience() {
 
   // First visit only: point out that the keys make sound, and where to turn it off.
   useEffect(() => {
-    if (!revealed || store.get("ventis:sound-hint")) return;
-    store.set("ventis:sound-hint", "1");
+    if (!revealed || storage.get("ventis:sound-hint")) return;
+    storage.set("ventis:sound-hint", "1");
     const show = setTimeout(() => setHint(true), 1800);
     const hide = setTimeout(() => setHint(false), 9000);
     const off = () => window.scrollY > 300 && setHint(false);
@@ -365,7 +326,7 @@ export default function Experience() {
       firstFinish.current = false;
       return;
     }
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (prefersReducedMotion()) return;
     wave(0.1, (t, fn) => gsap.delayedCall(t, fn));
   }, [cw]);
 
@@ -453,9 +414,7 @@ export default function Experience() {
   useGSAP(
     () => {
       const sections = gsap.utils.toArray<HTMLElement>("[data-scene]");
-      const reduced = window.matchMedia(
-        "(prefers-reduced-motion: reduce)",
-      ).matches;
+      const reduced = prefersReducedMotion();
 
       // Scroll position scrubs the board from one pose to the next.
       sections.forEach((el, i) => {

@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
+import { prefersReducedMotion } from '@/lib/browser';
 
 // Keep the counter on screen long enough to read, even when everything is cached.
 const MIN_SHOW = 1.3;
@@ -44,7 +45,7 @@ export default function Loader({ ready, onReveal }: Props) {
   useEffect(() => {
     if (!ready || !root.current) return;
     creep.current?.kill();
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reduced = prefersReducedMotion();
     const waited = (performance.now() - started.current) / 1000;
     const finish = Math.max(0.45, MIN_SHOW - waited);
     const el = root.current;
